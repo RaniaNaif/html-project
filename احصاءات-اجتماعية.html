@@ -147,7 +147,7 @@ tbody td { padding: 0.7rem 0.8rem; font-size: 0.82rem; vertical-align: middle; }
       <tr>
         <th>#</th>
         <th>اسم التقرير</th>
-        <th>دورية النشر</th>
+        <th>دورية التقرير</th>
         <th>تاريخ التسليم - الرزنامة</th>
         <th>تاريخ النشر الفعلي - الرزنامة</th>
         <th>تاريخ الرفع (نظام التقارير)</th>
@@ -168,10 +168,14 @@ tbody td { padding: 0.7rem 0.8rem; font-size: 0.82rem; vertical-align: middle; }
     <div class="modal-title" id="modalTitle">إضافة طلب جديد</div>
     <div class="field"><label>اسم التقرير *</label><input id="fTitle" placeholder="مثال: تقرير مؤشرات سوق العمل"></div>
     <div class="field">
-      <label>دورية النشر *</label>
+      <label>دورية التقرير *</label>
       <select id="fPeriod">
         <option value="">— اختر —</option>
-        <option>شهري</option><option>ربع سنوي</option><option>نصف سنوي</option><option>سنوي</option><option>غير منتظم</option>
+        <option>شهري</option>
+        <option>سنوي</option>
+        <option>سنتين</option>
+        <option>3 سنوات</option>
+        <option>5 سنوات</option>
       </select>
     </div>
     <div class="field"><label>تاريخ التسليم - الرزنامة</label><input type="date" id="fDateCalDelivery"></div>
@@ -361,3 +365,4 @@ renderStats(); render();
 </script>
 </body>
 </html>
+
