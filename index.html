@@ -321,7 +321,7 @@ function render() {
 function openModal() { editId=null; clearForm(); document.getElementById('modalTitle').textContent='إضافة طلب جديد'; document.getElementById('overlay').classList.add('open'); }
 function openEdit(id) {
   editId=id;
-  const r=data.find(x=>x.id===id);
+  const r=data.find(x=>String(x.id)===String(id));
   document.getElementById('fTitle').value=r.title||'';
   document.getElementById('fPeriod').value=r.period||'';
   document.getElementById('fDateCalDelivery').value=r.dateCalDelivery||'';
@@ -353,7 +353,7 @@ function saveRequest() {
     notes:           document.getElementById('fNotes').value.trim(),
   };
   if(editId) {
-    const idx=data.findIndex(x=>x.id===editId);
+    const idx=data.findIndex(x=>String(x.id)===String(editId));
     data[idx]={...data[idx],...entry};
     showToast('✅ تم تحديث الطلب');
   } else {
@@ -365,7 +365,7 @@ function saveRequest() {
 
 function del(id) {
   if(!confirm('هل أنت متأكد من حذف هذا الطلب؟'))return;
-  data=data.filter(x=>x.id!==id);
+  data=data.filter(x=>String(x.id)!==String(id));
   save(); showToast('🗑️ تم الحذف'); renderStats(); render();
 }
 
