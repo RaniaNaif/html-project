@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>نظام إدارة الإحصاءات الاجتماعية والبيئية | قسم الاجتماعية</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Tajawal', Arial, sans-serif; direction: rtl; background: #f0f4f8; color: #1c2833; min-height: 100vh; }
@@ -332,21 +333,103 @@ function exportData() {
   showToast('📤 تم تصدير البيانات');
 }
 
-function exportExcel() {
-  const rows = data.map(r => ({
-    'اسم التقرير': r.title,
-    'دورية التقرير': r.period,
-    'الحالة': r.status,
-    'تاريخ التسليم - الرزنامة': r.dateCalDelivery || '',
-    'تاريخ الرفع - التقارير الموحد': r.dateSystem || '',
-    'تاريخ الرفع - العلاقات العامة': r.datePR || '',
-    'تاريخ النشر': r.datePublish || '',
-    'الملاحظات': r.notes || '',
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'التقارير');
-  XLSX.writeFile(wb, 'احصاءات-اجتماعية-'+new Date().toISOString().slice(0,10)+'.xlsx');
+async function exportExcel() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('التقارير', { views: [{ rightToLeft: true }] });
+
+  const headersMap = [
+    ['title','اسم التقرير',32],
+    ['period','دورية التقرير',12],
+    ['status','الحالة',20],
+    ['dateCalDelivery','تاريخ التسليم - الرزنامة',16],
+    ['dateSystem','تاريخ الرفع - التقارير الموحد',18],
+    ['datePR','تاريخ الرفع - العلاقات العامة',18],
+    ['datePublish','تاريخ النشر',14],
+    ['notes','الملاحظات',35],
+  ];
+  const nCols = headersMap.length;
+  const NAVY = 'FF1A5276', TEAL = 'FF1ABC9C', LIGHT = 'FFEAF4FB', STRIPE = 'FFF7FAFC';
+
+  const statusColors = {
+    'لم يبدأ':              { bg:'FFD9D9D9', fg:'FF595959' },
+    'متأخر':                { bg:'FFF8CBAD', fg:'FFC00000' },
+    'تجميع البيانات':       { bg:'FFBDD7EE', fg:'FF1F4E78' },
+    'قيد المراجعة':         { bg:'FFFFE699', fg:'FF806000' },
+    'نظام العلاقات العامة': { bg:'FFD9C3E8', fg:'FF4B2E6F' },
+    'نظام التقارير الموحد': { bg:'FFC6E0B4', fg:'FF375623' },
+    'تم النشر':             { bg:'FFA9D08E', fg:'FF375623' },
+  };
+
+  // Title rows
+  ws.mergeCells(1,1,1,nCols);
+  const t1 = ws.getCell(1,1);
+  t1.value = 'نظام إدارة الإحصاءات الاجتماعية والبيئية | قسم الاجتماعية';
+  t1.font = { name:'Arial', size:16, bold:true, color:{argb:'FFFFFFFF'} };
+  t1.fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+  t1.alignment = { horizontal:'center', vertical:'middle' };
+  ws.getRow(1).height = 28;
+
+  ws.mergeCells(2,1,2,nCols);
+  const t2 = ws.getCell(2,1);
+  const today = new Date().toISOString().slice(0,10);
+  t2.value = 'تقرير حالة التقارير — تاريخ الإصدار: ' + today;
+  t2.font = { name:'Arial', size:11, italic:true, color:{argb:'FFFFFFFF'} };
+  t2.fill = { type:'pattern', pattern:'solid', fgColor:{argb:TEAL} };
+  t2.alignment = { horizontal:'center', vertical:'middle' };
+  ws.getRow(2).height = 18;
+
+  // Summary counts
+  const counts = {};
+  data.forEach(r => { counts[r.status] = (counts[r.status]||0) + 1; });
+  const summary = Object.entries(counts).map(([k,v]) => `${k}: ${v}`).join('   |   ') + `   |   الإجمالي: ${data.length}`;
+  ws.mergeCells(3,1,3,nCols);
+  const t3 = ws.getCell(3,1);
+  t3.value = summary;
+  t3.font = { name:'Arial', size:10, bold:true, color:{argb:'FF1A5276'} };
+  t3.fill = { type:'pattern', pattern:'solid', fgColor:{argb:LIGHT} };
+  t3.alignment = { horizontal:'center', vertical:'middle' };
+  ws.getRow(3).height = 20;
+
+  ws.getRow(4).height = 6;
+
+  const HEADER_ROW = 5;
+  headersMap.forEach(([key,label,width], j) => {
+    const c = ws.getCell(HEADER_ROW, j+1);
+    c.value = label;
+    c.font = { name:'Arial', size:11, bold:true, color:{argb:'FFFFFFFF'} };
+    c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:NAVY} };
+    c.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+    c.border = { top:{style:'thin',color:{argb:'FFB7C6D6'}}, bottom:{style:'thin',color:{argb:'FFB7C6D6'}}, left:{style:'thin',color:{argb:'FFB7C6D6'}}, right:{style:'thin',color:{argb:'FFB7C6D6'}} };
+    ws.getColumn(j+1).width = width;
+  });
+  ws.getRow(HEADER_ROW).height = 32;
+
+  data.forEach((r, i) => {
+    const rowIdx = HEADER_ROW + 1 + i;
+    headersMap.forEach(([key,label], j) => {
+      const c = ws.getCell(rowIdx, j+1);
+      c.value = r[key] || '';
+      c.font = { name:'Arial', size:10 };
+      c.alignment = { horizontal:'center', vertical:'middle', wrapText:(key==='title'||key==='notes') };
+      c.border = { top:{style:'thin',color:{argb:'FFB7C6D6'}}, bottom:{style:'thin',color:{argb:'FFB7C6D6'}}, left:{style:'thin',color:{argb:'FFB7C6D6'}}, right:{style:'thin',color:{argb:'FFB7C6D6'}} };
+      if (rowIdx % 2 === 0) c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:STRIPE} };
+    });
+    const statusCell = ws.getCell(rowIdx, 3);
+    const sc = statusColors[r.status];
+    if (sc) {
+      statusCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:sc.bg} };
+      statusCell.font = { name:'Arial', size:10, bold:true, color:{argb:sc.fg} };
+    }
+  });
+
+  const lastRow = HEADER_ROW + data.length;
+  ws.views = [{ rightToLeft:true, state:'frozen', ySplit: HEADER_ROW }];
+  ws.autoFilter = { from:{row:HEADER_ROW,column:1}, to:{row:lastRow,column:nCols} };
+  ws.pageSetup = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, margins:{left:0.3,right:0.3,top:0.5,bottom:0.5,header:0.2,footer:0.2} };
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, 'احصاءات-اجتماعية-'+today+'.xlsx');
   showToast('📊 تم تصدير ملف Excel');
 }
 
@@ -376,6 +459,3 @@ document.getElementById('dateDisplay').textContent=new Date().toLocaleDateString
 
 renderStats(); render();
 </script>
-</body>
-</html>
-
