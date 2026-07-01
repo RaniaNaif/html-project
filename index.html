@@ -141,7 +141,8 @@ tbody td { padding: 0.7rem 0.8rem; font-size: 0.82rem; vertical-align: middle; }
   <button class="btn-export" onclick="exportExcel()">📊 تصدير Excel</button>
   <button class="btn-import" onclick="document.getElementById('importFile').click()">📥 استيراد JSON</button>
   <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-  <span class="team-badge">💾 البيانات محفوظة على جهازك — شارك ملف JSON مع الفريق</span>
+  <button class="btn-refresh" onclick="loadFromSheet(true)">🔄 تحديث من الفريق</button>
+  <span class="team-badge">☁️ البيانات مشتركة تلقائياً مع الفريق عبر Google Sheets</span>
 </div>
 
 <div class="table-wrap">
@@ -203,6 +204,7 @@ tbody td { padding: 0.7rem 0.8rem; font-size: 0.82rem; vertical-align: middle; }
 <div class="toast" id="toast"></div>
 
 <script>
+const SHEET_API = 'https://script.google.com/macros/s/AKfycbypBvWbhcCbAnD10T547tFihsL3dEQWJpJabJADWjgBnd3PyPThuwRSLZwNxNHocEgqdA/exec';
 const STATUSES = [
   { label:'لم يبدأ',              bg:'#f0f4f8', color:'#6c7a89', icon:'⏳' },
   { label:'متأخر',                bg:'#fdedec', color:'#e74c3c', icon:'🔴' },
@@ -217,8 +219,51 @@ const KEY = 'stat_social_v1';
 let data = JSON.parse(localStorage.getItem(KEY) || '[]');
 let filterStatus = null;
 let editId = null;
+let syncing = false;
 
-function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+function save() { localStorage.setItem(KEY, JSON.stringify(data)); syncToSheet(); }
+
+async function syncToSheet() {
+  if (!SHEET_API || syncing) return;
+  syncing = true;
+  updateSyncDisplay('🔄 جاري المزامنة...');
+  try {
+    await fetch(SHEET_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ data })
+    });
+    updateSyncDisplay('✅ تمت المزامنة مع الفريق — ' + new Date().toLocaleTimeString('ar-SA'));
+  } catch (err) {
+    updateSyncDisplay('⚠️ تعذرت المزامنة — البيانات محفوظة على جهازك فقط');
+  }
+  syncing = false;
+}
+
+async function loadFromSheet(showFeedback) {
+  if (!SHEET_API) return;
+  if (showFeedback) updateSyncDisplay('🔄 جاري التحميل من الفريق...');
+  try {
+    const res = await fetch(SHEET_API, { method: 'GET' });
+    const remote = await res.json();
+    if (Array.isArray(remote)) {
+      data = remote;
+      save_local_only();
+      renderStats(); render();
+      updateSyncDisplay('✅ محدّث من الفريق — ' + new Date().toLocaleTimeString('ar-SA'));
+      if (showFeedback) showToast('🔄 تم تحديث البيانات من الفريق');
+    }
+  } catch (err) {
+    updateSyncDisplay('⚠️ تعذر الاتصال بالفريق — يعرض آخر نسخة محفوظة على جهازك');
+  }
+}
+
+function save_local_only() { localStorage.setItem(KEY, JSON.stringify(data)); }
+
+function updateSyncDisplay(msg) {
+  const el = document.getElementById('syncDisplay');
+  if (el) el.textContent = msg;
+}
 function fmtDate(v) {
   if (!v) return '<span style="color:#ccc">—</span>';
   return new Date(v).toLocaleDateString('ar-SA', {year:'numeric',month:'short',day:'numeric'});
@@ -458,4 +503,8 @@ document.getElementById('overlay').addEventListener('click',e=>{if(e.target===e.
 document.getElementById('dateDisplay').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
 renderStats(); render();
+loadFromSheet(false);
+setInterval(() => loadFromSheet(false), 30000);
 </script>
+</body>
+</html>
