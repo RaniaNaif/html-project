@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>نظام إدارة الإحصاءات الاجتماعية والبيئية | قسم الاجتماعية</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Tajawal', Arial, sans-serif; direction: rtl; background: #f0f4f8; color: #1c2833; min-height: 100vh; }
@@ -136,6 +137,7 @@ tbody td { padding: 0.7rem 0.8rem; font-size: 0.82rem; vertical-align: middle; }
     <input type="text" placeholder="بحث..." oninput="render()" id="searchInput">
   </div>
   <button class="btn-export" onclick="exportData()">📤 تصدير JSON</button>
+  <button class="btn-export" onclick="exportExcel()">📊 تصدير Excel</button>
   <button class="btn-import" onclick="document.getElementById('importFile').click()">📥 استيراد JSON</button>
   <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
   <span class="team-badge">💾 البيانات محفوظة على جهازك — شارك ملف JSON مع الفريق</span>
@@ -330,6 +332,24 @@ function exportData() {
   showToast('📤 تم تصدير البيانات');
 }
 
+function exportExcel() {
+  const rows = data.map(r => ({
+    'اسم التقرير': r.title,
+    'دورية التقرير': r.period,
+    'الحالة': r.status,
+    'تاريخ التسليم - الرزنامة': r.dateCalDelivery || '',
+    'تاريخ الرفع - التقارير الموحد': r.dateSystem || '',
+    'تاريخ الرفع - العلاقات العامة': r.datePR || '',
+    'تاريخ النشر': r.datePublish || '',
+    'الملاحظات': r.notes || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'التقارير');
+  XLSX.writeFile(wb, 'احصاءات-اجتماعية-'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('📊 تم تصدير ملف Excel');
+}
+
 function importData(e) {
   const file=e.target.files[0]; if(!file)return;
   const reader=new FileReader();
@@ -358,3 +378,4 @@ renderStats(); render();
 </script>
 </body>
 </html>
+
